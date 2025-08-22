@@ -1,0 +1,86 @@
+/* Font */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+
+/* Primary Fonts */
+:root {
+    --primary: #322c81;
+    --secondary: #43419b;
+    --bg: #ececf4;
+}
+
+/* General */
+body {
+    background: var(--bg);
+    overflow: hidden;
+}
+
+/* Button */
+.btn {
+    padding: 15px 40px;
+    border: none;
+    border-radius: 10px;
+    font-family: "Outfit", sans-serif;
+    cursor: pointer;
+    font-size: 14px;
+    margin: 4px;
+}
+.btn-primary { background: linear-gradient(var(--secondary), var(--primary)); color: white; scale: 1; transition: 0.5s scale ease; }
+.btn:hover { scale: 1.05; transition: 0.5s scale ease; }
+
+/* Home Page */
+.phog {
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    img {
+        width: 20%;
+        animation: logo-animation 5s;
+    }
+    h1 {
+        margin: 0;
+        margin-bottom: 20px;
+        font-family: "Outfit", sans-serif;
+        color: var(--primary);
+    }
+    .bottom {
+        animation: heading 5s;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+}
+
+/* Animations */
+@keyframes logo-animation {
+    0% {
+        transform: translateY(400px) translateX(-500px);
+        scale: 1.2;
+    }
+    50% {
+        transform: translateY(0) translateX(0);
+    }
+    80% {
+        scale: 1.2;
+    }
+    100% {
+        scale: 1;
+    }
+}
+
+@keyframes heading {
+    0% {
+        opacity: 0;
+        transform: translateY(500px);
+        scale: 1.2;
+    }
+    80% {
+        scale: 1.2;
+    }
+    100% {
+        scale: 1;
+        opacity: 1;
+    }
+}
