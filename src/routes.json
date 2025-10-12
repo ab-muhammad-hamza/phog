@@ -7,12 +7,8 @@
     "component": "pages/home.html",
     "title": "Home"
   },
-  "/about": {
-    "component": "pages/about.html",
-    "title": "About"
-  },
-  "/contact": {
-    "component": "pages/contact.html",
-    "title": "Contact"
+  "/get-started": {
+    "component": "pages/get-started.html",
+    "title": "get-started"
   }
 }

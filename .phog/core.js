@@ -6,7 +6,7 @@ class LiteFramework {
     this.currentRoute = '';
     this.appContainer = null;
     this.basePath = config.basePath || 'src';
-    this.assetsPath = config.assetsPath || 'assets';
+    this.assetsPath = config.assetsPath || 'src/assets';
     this.baseUrl = config.baseUrl || '/';
     this.debug = config.debug || false;
     

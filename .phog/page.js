@@ -39,3 +39,17 @@ LiteFramework.prototype.executeScripts = function() {
     document.head.appendChild(newScript);
   });
 };
+
+window.addEventListener('popstate', () => {
+  const path = location.pathname.replace('/', '') || 'index.html';
+  app.loadPage(path);
+});
+
+document.querySelectorAll('a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const href = a.getAttribute('href');
+    history.pushState({}, '', href);
+    app.loadPage(href);
+  });
+});
