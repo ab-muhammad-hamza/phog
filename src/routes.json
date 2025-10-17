@@ -9,6 +9,6 @@
   },
   "/get-started": {
     "component": "pages/get-started.html",
-    "title": "get-started"
+    "title": "Get Started"
   }
 }

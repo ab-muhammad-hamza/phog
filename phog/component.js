@@ -1,44 +1,51 @@
-LiteFramework.prototype.processComponents = async function(html) {
+Phog.prototype.processComponents = async function(html) {
   if (this.debug) console.log('Processing components in HTML...');
   
-  // Find all component tags - improved regex to handle both self-closing and paired tags
   const componentRegex = /<([A-Z]\w*)([^>]*?)(?:\s*\/>|>([\s\S]*?)<\/\1>)/g;
-  let processedHtml = html;
-  
   const matches = [...html.matchAll(componentRegex)];
+  
   if (this.debug) console.log('Found potential components:', matches.map(m => m[1]));
   
-  for (const match of matches) {
-    const [fullMatch, componentName, attributes, content] = match;
-    
-    if (this.debug) console.log('Processing element:', componentName);
-    
-    // Skip standard HTML elements (but components should start with capital letter anyway)
-    if (this.isStandardHtmlElement(componentName)) {
-      if (this.debug) console.log(`Skipping standard HTML element: ${componentName}`);
-      continue;
-    }
-    
-    if (this.debug) console.log(`Loading custom component: ${componentName}`);
-    
-    try {
-      const componentHtml = await this.loadComponent(componentName);
-      const props = this.parseAttributes(attributes);
-      const renderedComponent = this.renderComponent(componentHtml, props, content || '');
+  const replacements = await Promise.all(
+    matches.map(async match => {
+      const [fullMatch, componentName, attributes, content] = match;
       
-      if (this.debug) console.log(`Rendered component ${componentName}:`, renderedComponent.substring(0, 100));
+      if (this.debug) console.log('Processing element:', componentName);
       
-      processedHtml = processedHtml.replace(fullMatch, renderedComponent);
-    } catch (error) {
-      console.warn(`Failed to load component ${componentName}:`, error);
-      processedHtml = processedHtml.replace(fullMatch, `<!-- Component ${componentName} failed to load: ${error.message} -->`);
-    }
+      if (this.isStandardHtmlElement(componentName)) {
+        if (this.debug) console.log(`Skipping standard HTML element: ${componentName}`);
+        return { fullMatch, replacement: fullMatch };
+      }
+      
+      if (this.debug) console.log(`Loading custom component: ${componentName}`);
+      
+      try {
+        const componentHtml = await this.loadComponent(componentName);
+        const props = this.parseAttributes(attributes);
+        const renderedComponent = this.renderComponent(componentHtml, props, content || '');
+        
+        if (this.debug) console.log(`Rendered component ${componentName}:`, renderedComponent.substring(0, 100));
+        
+        return { fullMatch, replacement: renderedComponent };
+      } catch (error) {
+        console.warn(`Failed to load component ${componentName}:`, error);
+        return { 
+          fullMatch, 
+          replacement: `<!-- Component ${componentName} failed to load: ${error.message} -->` 
+        };
+      }
+    })
+  );
+  
+  let processedHtml = html;
+  for (const { fullMatch, replacement } of replacements) {
+    processedHtml = processedHtml.replace(fullMatch, replacement);
   }
   
   return processedHtml;
 };
 
-LiteFramework.prototype.loadComponent = async function(componentName) {
+Phog.prototype.loadComponent = async function(componentName) {
   if (this.components.has(componentName)) {
     if (this.debug) console.log(`Component ${componentName} found in cache`);
     return this.components.get(componentName);
@@ -59,46 +66,44 @@ LiteFramework.prototype.loadComponent = async function(componentName) {
   return html;
 };
 
-LiteFramework.prototype.parseAttributes = function(attributeString) {
+Phog.prototype.parseAttributes = function(attributeString) {
   const props = {};
   const attrRegex = /(\w+)=["']([^"']*)["']/g;
   let match;
   
   while ((match = attrRegex.exec(attributeString)) !== null) {
-    const [, key, value] = match;
-    props[key] = value;
+    props[match[1]] = match[2];
   }
   
   if (this.debug) console.log('Parsed attributes:', props);
   return props;
 };
 
-LiteFramework.prototype.renderComponent = function(template, props, content = '') {
-  let rendered = template;
+Phog.prototype.renderComponent = function(template, props, content = '') {
+  let rendered = this.processEnvVariables(template);
   
-  // Replace {{prop}} with actual values
   rendered = rendered.replace(/\{\{(\w+)\}\}/g, (match, propName) => {
     const value = props[propName] || '';
     if (this.debug) console.log(`Replacing ${match} with: ${value}`);
     return value;
   });
   
-  // Replace {{children}} with slot content
   rendered = rendered.replace(/\{\{children\}\}/g, content);
-  
-  // Process asset paths in components too
   rendered = this.processAssetPaths(rendered);
+  rendered = this.processComponentPaths(rendered);
   
   return rendered;
 };
 
-LiteFramework.prototype.processAssetPaths = function(html) {
-  // Replace @assets/ with actual asset path
+Phog.prototype.processAssetPaths = function(html) {
   return html.replace(/@assets\//g, `${this.baseUrl}${this.assetsPath}/`);
 };
 
-LiteFramework.prototype.initializeComponentInstances = function() {
-  // Find and initialize components with data-component attribute
+Phog.prototype.processComponentPaths = function(html) {
+  return html.replace(/@components\//g, `${this.baseUrl}${this.componentsPath}/`);
+};
+
+Phog.prototype.initializeComponentInstances = function() {
   const componentElements = document.querySelectorAll('[data-component]');
   if (this.debug) console.log(`Found ${componentElements.length} component instances to initialize`);
   
@@ -108,20 +113,17 @@ LiteFramework.prototype.initializeComponentInstances = function() {
     
     element.setAttribute('data-component-id', componentId);
     
-    // Store component instance for potential state management
     this.componentInstances.set(componentId, {
       name: componentName,
       element: element,
       state: {}
     });
     
-    // Initialize component-specific logic
     this.initializeComponentLogic(element, componentName);
   });
 };
 
-LiteFramework.prototype.initializeComponentLogic = function(element, componentName) {
-  // Handle component-specific interactions
+Phog.prototype.initializeComponentLogic = function(element, componentName) {
   const buttons = element.querySelectorAll('[data-action]');
   buttons.forEach(button => {
     const action = button.getAttribute('data-action');
@@ -131,14 +133,12 @@ LiteFramework.prototype.initializeComponentLogic = function(element, componentNa
   });
 };
 
-LiteFramework.prototype.handleComponentAction = function(element, componentName, action, event) {
-  // This can be extended for component-specific actions
+Phog.prototype.handleComponentAction = function(element, componentName, action, event) {
   const componentId = element.getAttribute('data-component-id');
   const instance = this.componentInstances.get(componentId);
   
   if (this.debug) console.log(`Component action triggered: ${componentName}.${action}`);
   
-  // Example: emit custom events
   const customEvent = new CustomEvent(`component-${action}`, {
     detail: { componentName, componentId, instance, originalEvent: event }
   });
@@ -146,12 +146,12 @@ LiteFramework.prototype.handleComponentAction = function(element, componentName,
   element.dispatchEvent(customEvent);
 };
 
-LiteFramework.prototype.generateComponentId = function() {
+Phog.prototype.generateComponentId = function() {
   return `comp_${Math.random().toString(36).substr(2, 9)}`;
 };
 
-LiteFramework.prototype.isStandardHtmlElement = function(tagName) {
-  const standardElements = [
+Phog.prototype.isStandardHtmlElement = function(tagName) {
+  const standardElements = new Set([
     'div', 'span', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'a', 'img', 'button', 'input', 'form', 'ul', 'ol', 'li',
     'table', 'tr', 'td', 'th', 'thead', 'tbody', 'nav', 'header',
@@ -162,7 +162,6 @@ LiteFramework.prototype.isStandardHtmlElement = function(tagName) {
     'var', 'time', 'data', 'address', 'cite', 'q', 'dfn', 'abbr',
     'textarea', 'select', 'option', 'label', 'fieldset', 'legend',
     'details', 'summary', 'dialog', 'menu', 'menuitem'
-  ];
-  const lower = tagName.toLowerCase();
-  return tagName === lower && standardElements.includes(lower);
+  ]);
+  return standardElements.has(tagName.toLowerCase());
 };

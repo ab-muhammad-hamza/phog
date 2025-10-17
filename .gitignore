@@ -1,0 +1,6 @@
+# Build / Output
+dist
+
+# env files
+.env*
+config.env

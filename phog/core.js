@@ -1,12 +1,14 @@
-class LiteFramework {
+class Phog {
   constructor(config = {}) {
     this.routes = {};
     this.components = new Map();
     this.componentInstances = new Map();
+    this.env = {};
     this.currentRoute = '';
     this.appContainer = null;
     this.basePath = config.basePath || 'src';
     this.assetsPath = config.assetsPath || 'src/assets';
+    this.componentsPath = config.componentsPath || 'src/components';
     this.baseUrl = config.baseUrl || '/';
     this.debug = config.debug || false;
     
@@ -17,23 +19,14 @@ class LiteFramework {
 
   async init() {
     if (this.debug) console.log('Starting framework initialization...');
-    
-    // Load routes configuration
+    await this.loadEnv();
     await this.loadRoutes();
-    
-    // Load app wrapper
     await this.loadAppWrapper();
-    
-    // Set up routing
     this.setupRouter();
-    
-    // Handle initial route
     this.handleRoute();
   }
 }
-
-// Initialize framework when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   if (window.app && window.app.debug) console.log('DOM loaded, initializing framework...');
-  window.app = new LiteFramework();
+  window.app = new Phog();
 });
