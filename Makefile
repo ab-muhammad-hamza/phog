@@ -96,7 +96,7 @@ fs.writeFileSync(bundledFile, content);\
 			fi; \
 		done; \
 	else \
-		@printf "    - .env file not found, skipping injection.\n"; \
+		printf "    - .env file not found, skipping injection.\n"; \
 	fi
 
 	@printf "  + Cleaning up temporary files...\n"
