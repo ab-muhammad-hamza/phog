@@ -1,49 +1,57 @@
 Phog.prototype.processComponents = async function(html) {
   if (this.debug) console.log('Processing components in HTML...');
 
-  const componentRegex = /<([A-Z][\w\/\.]*)([^>]*?)(?:\s*\/>|>([\s\S]*?)<\/\1>)/g;
-  const matches = [...html.matchAll(componentRegex)];
-
-  if (this.debug) console.log('Found potential components:', matches.map(m => m[1]));
-
-  const replacements = await Promise.all(
-    matches.map(async match => {
-      const [fullMatch, componentName, attributes, content] = match;
-
-      if (this.debug) console.log('Processing element:', componentName);
-
-      // We check the last part of the path for a standard element name
-      const finalTagName = componentName.split(/[\/\.]/).pop();
-      if (this.isStandardHtmlElement(finalTagName)) {
-        if (this.debug) console.log(`Skipping standard HTML element: ${componentName}`);
-        return { fullMatch, replacement: fullMatch };
-      }
-
-      if (this.debug) console.log(`Loading custom component: ${componentName}`);
-
-      try {
-        const componentHtml = await this.loadComponent(componentName);
-        const props = this.parseAttributes(attributes);
-        const renderedComponent = this.renderComponent(componentHtml, props, content || '');
-
-        if (this.debug) console.log(`Rendered component ${componentName}:`, renderedComponent.substring(0, 100));
-
-        return { fullMatch, replacement: renderedComponent };
-      } catch (error) {
-        console.warn(`Failed to load component ${componentName}:`, error);
-        return {
-          fullMatch,
-          replacement: ``
-        };
-      }
-    })
-  );
-
   let processedHtml = html;
-  for (const { fullMatch, replacement } of replacements) {
-    processedHtml = processedHtml.replace(fullMatch, replacement);
+  const componentRegex = /<([A-Z][\w\/\.]*)([^>]*?)(?:\s*\/>|>([\s\S]*?)<\/\1>)/g;
+  let recursionDepth = 0;
+  const maxDepth = 20;
+
+  while (true) {
+    if (++recursionDepth > maxDepth) {
+      console.error("Max component nesting depth reached. Check for infinite loops in your components (e.g., ComponentA includes ComponentB, and ComponentB includes ComponentA).");
+      break;
+    }
+
+    const matches = [...processedHtml.matchAll(componentRegex)];
+
+    if (matches.length === 0) {
+      if (this.debug) console.log('No more components to process.');
+      break;
+    }
+
+    if (this.debug) console.log(`Pass ${recursionDepth}: Found components to process:`, matches.map(m => m[1]));
+
+    const replacements = await Promise.all(
+      matches.map(async match => {
+        const [fullMatch, componentName, attributes, content] = match;
+
+        const finalTagName = componentName.split(/[\/\.]/).pop();
+        if (this.isStandardHtmlElement(finalTagName)) {
+          if (this.debug) console.log(`Skipping standard HTML element on this pass: ${componentName}`);
+          return { fullMatch, replacement: fullMatch };
+        }
+
+        if (this.debug) console.log(`Loading custom component: ${componentName}`);
+
+        try {
+          const componentHtml = await this.loadComponent(componentName);
+          const props = this.parseAttributes(attributes);
+          const renderedComponent = this.renderComponent(componentHtml, props, content || '');
+
+          return { fullMatch, replacement: renderedComponent };
+        } catch (error) {
+          console.warn(`Failed to load component ${componentName}:`, error);
+          return { fullMatch, replacement: '' };
+        }
+      })
+    );
+
+    for (const { fullMatch, replacement } of replacements) {
+      processedHtml = processedHtml.replace(fullMatch, () => replacement);
+    }
   }
 
+  if (this.debug) console.log('Component processing complete.');
   return processedHtml;
 };
 
