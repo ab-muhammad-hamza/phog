@@ -1,47 +1,49 @@
 Phog.prototype.processComponents = async function(html) {
   if (this.debug) console.log('Processing components in HTML...');
-  
-  const componentRegex = /<([A-Z]\w*)([^>]*?)(?:\s*\/>|>([\s\S]*?)<\/\1>)/g;
+
+  const componentRegex = /<([A-Z][\w\/\.]*)([^>]*?)(?:\s*\/>|>([\s\S]*?)<\/\1>)/g;
   const matches = [...html.matchAll(componentRegex)];
-  
+
   if (this.debug) console.log('Found potential components:', matches.map(m => m[1]));
-  
+
   const replacements = await Promise.all(
     matches.map(async match => {
       const [fullMatch, componentName, attributes, content] = match;
-      
+
       if (this.debug) console.log('Processing element:', componentName);
-      
-      if (this.isStandardHtmlElement(componentName)) {
+
+      // We check the last part of the path for a standard element name
+      const finalTagName = componentName.split(/[\/\.]/).pop();
+      if (this.isStandardHtmlElement(finalTagName)) {
         if (this.debug) console.log(`Skipping standard HTML element: ${componentName}`);
         return { fullMatch, replacement: fullMatch };
       }
-      
+
       if (this.debug) console.log(`Loading custom component: ${componentName}`);
-      
+
       try {
         const componentHtml = await this.loadComponent(componentName);
         const props = this.parseAttributes(attributes);
         const renderedComponent = this.renderComponent(componentHtml, props, content || '');
-        
+
         if (this.debug) console.log(`Rendered component ${componentName}:`, renderedComponent.substring(0, 100));
-        
+
         return { fullMatch, replacement: renderedComponent };
       } catch (error) {
         console.warn(`Failed to load component ${componentName}:`, error);
-        return { 
-          fullMatch, 
-          replacement: `<!-- Component ${componentName} failed to load: ${error.message} -->` 
+        return {
+          fullMatch,
+          replacement: ``
         };
       }
     })
   );
-  
+
   let processedHtml = html;
   for (const { fullMatch, replacement } of replacements) {
     processedHtml = processedHtml.replace(fullMatch, replacement);
   }
-  
+
   return processedHtml;
 };
 
@@ -50,18 +52,20 @@ Phog.prototype.loadComponent = async function(componentName) {
     if (this.debug) console.log(`Component ${componentName} found in cache`);
     return this.components.get(componentName);
   }
-  
-  const componentPath = `${this.baseUrl}${this.basePath}/components/${componentName.toLowerCase()}.html`;
+
+  const componentPathName = componentName.replace(/\./g, '/');
+
+  const componentPath = `${this.baseUrl}${this.basePath}/components/${componentPathName.toLowerCase()}.html`;
   if (this.debug) console.log(`Loading component from: ${componentPath}`);
-  
+
   const response = await fetch(componentPath);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
-  
+
   const html = await response.text();
   if (this.debug) console.log(`Component ${componentName} loaded successfully`);
-  
+
   this.components.set(componentName, html);
   return html;
 };
