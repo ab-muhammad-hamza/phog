@@ -1,17 +1,34 @@
 Phog.prototype.setupRouter = function() {
   if (this.debug) console.log('Setting up SPA router...');
 
-  window.addEventListener('popstate', () => this.handleRoute());
+  this.lastPathname = window.location.pathname;
+
+  window.addEventListener('popstate', () => {
+    if (window.location.pathname === this.lastPathname) {
+      if (this.debug) console.log('Hash changed only, skipping route handler');
+      return;
+    }
+    this.lastPathname = window.location.pathname;
+    this.handleRoute();
+  });
 
   document.addEventListener('click', (e) => {
     const link = e.target.closest('a[href]');
     if (!link) return;
 
     const href = link.getAttribute('href');
+    
     const isExternal = href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:');
-    const isSpecial = href.startsWith('#') || link.target === '_blank' || link.hasAttribute('download') || link.hasAttribute('data-external') || link.hasAttribute('data-reload');
+    
+    const isHashOnly = href.startsWith('#') || 
+                       (link.pathname === window.location.pathname && link.hash);
+    
+    const hasSpecialAttr = link.target === '_blank' || 
+                          link.hasAttribute('download') || 
+                          link.hasAttribute('data-external') || 
+                          link.hasAttribute('data-reload');
 
-    if (!href || isExternal || isSpecial) {
+    if (!href || isExternal || isHashOnly || hasSpecialAttr) {
       return;
     }
 
@@ -141,4 +158,3 @@ Phog.prototype.executePageScripts = function() {
     script.parentNode.replaceChild(newScript, script);
   });
 };
-
